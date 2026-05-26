@@ -1,0 +1,15 @@
+{
+    "name":"Youtube Last Seen",
+    "description":"Resume youtube videos from where you last left them, even if your watch history is off.",
+    "version":"1.0",
+    "manifest_version":3,
+    "content_scripts":[{
+        "js": ["scripts/content.js"],
+        "matches":[
+           "https://www.youtube.com/*",
+           "https://m.youtube.com/*"
+        ]
+
+    }]
+
+}
