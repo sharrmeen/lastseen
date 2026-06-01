@@ -1,7 +1,10 @@
- function lastSeenTill(video){
+let activeTimer=null
+
+function lastSeenTill(video){
      console.log("I WAS WORKing")
-    if(video){
+    if(!video){
         console.log("I FOUND THE VIDEO")
+        return;
     }
     const urlParam=new URLSearchParams(window.location.search)
     const videoId=urlParam.get('v')
@@ -12,7 +15,7 @@
     chrome.storage.local.get([videoId],(result)=>{
         if(result[videoId]){
             console.log(result[videoId])
-            const savedTime=result[videoId]
+            const savedTime=result[videoId].time
             if(video.readyState>=1){
                 video.currentTime=savedTime
             }
@@ -24,27 +27,54 @@
         }
     })
 
+    //clear the previous process
+    if(activeTimer){
+        clearInterval(activeTimer)
+        activeTimer=null
+        console.log("Killed old loop");
+    }
+
     //run every 3 seconds while the video plays
-    setInterval(()=>{
+    activeTimer=setInterval(()=>{
         if(!video.paused && video.currentTime>5){
-            chrome.storage.local.set({[videoId]:video.currentTime})
+            chrome.storage.local.set({[videoId]:{time:video.currentTime,savedAt:Date.now()}})
             console.log("Saved time for video "+videoId+" as "+video.currentTime)
         }
     },3000)
+
+    window.addEventListener("beforeunload",()=>{
+        chrome.storage.local.set({[videoId]:{time:video.currentTime,savedAt:Date.now()}})
+    })
 }
 
-lastSeenTill(document.querySelector('video'))
-
-const observer=new MutationObserver((mutations)=>{
-    for(const mutation of mutations){
-        for(const node of mutation.addedNodes){
-            if(node instanceof Element && node.tagName=="VIDEO"){
-                lastSeenTill(node)
-            }
-        }
+//wait until video is loaded for the first time
+function init(){
+    if(document.querySelector('video')){
+     lastSeenTill(document.querySelector('video'))
     }
-})
+    else{
+        setTimeout(init,500);
+    }
+}
 
-observer.observe(document.body, { childList: true, subtree: true });
+init()
+
+
+document.addEventListener('yt-navigate-finish', () => {
+    const video = document.querySelector('video');
+    lastSeenTill(video);
+});
+
+// const observer=new MutationObserver((mutations)=>{
+//     for(const mutation of mutations){
+//         for(const node of mutation.addedNodes){
+//             if(node instanceof Element && node.tagName=="VIDEO"){
+//                 lastSeenTill(node)
+//             }
+//         }
+//     } 
+// })
+
+// observer.observe(document.body, { childList: true, subtree: true });
 
  
