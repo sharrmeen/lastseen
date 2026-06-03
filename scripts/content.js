@@ -1,29 +1,27 @@
 let activeTimer=null
+let unloadHandler=null
 
 function lastSeenTill(video){
-     console.log("I WAS WORKing")
     if(!video){
-        console.log("I FOUND THE VIDEO")
         return;
     }
     const urlParam=new URLSearchParams(window.location.search)
     const videoId=urlParam.get('v')
-    console.log(videoId)
     if(!videoId)return;
 
     //check for existing url : time pair
     chrome.storage.local.get([videoId],(result)=>{
         if(result[videoId]){
-            console.log(result[videoId])
+            // console.log("Saved time found for "+result[videoId]+"at "+result[videoId].time)
             const savedTime=result[videoId].time
-            if(video.readyState>=1){
+            video.currentTime=savedTime
+            // console.log("Video time updated to "+savedTime)
+
+            video.addEventListener("loadedmetadata",()=>{
                 video.currentTime=savedTime
-            }
-            else{
-                video.addEventListener("loadedmetadata",()=>{
-                    video.currentTime=savedTime
-                },{once:true})
-            }
+                // console.log("Video time updated to "+savedTime)
+            },{once:true})
+            
         }
     })
 
@@ -31,21 +29,35 @@ function lastSeenTill(video){
     if(activeTimer){
         clearInterval(activeTimer)
         activeTimer=null
-        console.log("Killed old loop");
+        // console.log("Killed old loop");
     }
 
     //run every 3 seconds while the video plays
     activeTimer=setInterval(()=>{
-        if(!video.paused && video.currentTime>5){
+        if(!video.paused && video.currentTime>15){
             chrome.storage.local.set({[videoId]:{time:video.currentTime,savedAt:Date.now()}})
-            console.log("Saved time for video "+videoId+" as "+video.currentTime)
+            // console.log("Saved time for video "+videoId+" as "+video.currentTime)
         }
     },3000)
 
-    window.addEventListener("beforeunload",()=>{
+    if (unloadHandler) window.removeEventListener('beforeunload', unloadHandler);
+
+    unloadHandler=()=>{
         chrome.storage.local.set({[videoId]:{time:video.currentTime,savedAt:Date.now()}})
-    })
+    }
+    window.addEventListener("beforeunload",unloadHandler)
 }
+
+//cleanup old entries
+chrome.storage.local.get(null,(all)=>{
+    const month=30*24*60*60*1000;
+    const toDelete=Object.keys(all).filter((k)=>
+        Date.now()-all[k]?.savedAt>month
+    )
+    if(toDelete.length){
+        chrome.storage.local.remove(toDelete);
+    }
+})
 
 //wait until video is loaded for the first time
 function init(){
@@ -59,7 +71,7 @@ function init(){
 
 init()
 
-
+//fire when the video components src changes (since SPA)
 document.addEventListener('yt-navigate-finish', () => {
     const video = document.querySelector('video');
     lastSeenTill(video);
