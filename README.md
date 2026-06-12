@@ -22,7 +22,7 @@ A lightweight Chrome content script that saves your playback position and resume
 4. Click **Load unpacked** and select the repo folder
 5. Open YouTube — it just works
 
-## Limitations
+## Note
 
 - YouTube Shorts not supported
 - Livestreams are ignored
